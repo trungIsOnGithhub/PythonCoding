@@ -40,15 +40,14 @@ class YoutubeAS(AutoSufer):
         
         print(search_bar.text)
         
-    def other(self):
+    def other(self, video_start_minute, video_start_second):
         # pause_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//button[@title='Pause (k)']")))
         # pause_btn.click()
         self.driver.get('https://www.youtube.com/watch?v=IeR2g9692sM')
 
         # comment out to test pause btn, otherwise it happens so fast you don't notice
-        play_btn = WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH,"//button[@title='Play (k)']")))
+        play_btn = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//button[@title='Play (k)']")))
         play_btn.click()
-
         # mute_btn = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//button[@aria-label='Mute (m)']")))
         # mute_btn.click()
 
@@ -58,10 +57,16 @@ class YoutubeAS(AutoSufer):
         
         # driver.find_element_by_css_selector('body').send_keys(Keys.SPACE)
         # time.sleep(5)
-        for i in range(0,10):
+
+        duration_of_skip = video_start_minute * 60 + video_start_second # in second
+        num_of_skip = int(duration_of_skip / 5)
+
+        for i in range(0,num_of_skip):
             self.driver.find_element(By.CSS_SELECTOR, 'body').send_keys(Keys.RIGHT)
+
+        play_btn.click()
         
         time.sleep(69)
 
 yt = YoutubeAS(webdriver.Chrome())
-yt.other()
+yt.other(2,27)
