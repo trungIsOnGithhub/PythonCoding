@@ -14,6 +14,8 @@ from selenium.webdriver.chrome.options import Options
 
 # import AutoSufer
 
+MAX_TIME_WAIT = 300
+
 class AutoSufer:
 	def __init__(self, browser_driver   ):
 		self.driver = browser_driver
@@ -31,14 +33,13 @@ class AutoSufer:
   
 	def focus(self, xpath):
 		return self.driver.find_element(By.XPATH, xpath)
-MAX_TIME_WAIT = 300
+
 class YoutubeAS(AutoSufer):
     def open(self):
-        self.driver.get("https://www.youtube.com")
+        self.open_url("https://www.youtube.com")
     
-    def focus_search(self, xpath):
+    def focus_search(self):
         search_bar = self.focus('//*[@id="search"]')
-        
         print(search_bar.text)
 		
     def open_specific_video_at_specific_time(self, url, start_minute, start_second):
@@ -110,7 +111,7 @@ class YoutubeAS(AutoSufer):
         time.sleep(69)
 
 playlist = [
-      ['https://www.youtube.com/watch?v=8M6hwcCr4_E', 0, 3],
+      ['https://www.youtube.com/watch?v=8M6hwcCr4_E', 2, 3],
       ['https://www.youtube.com/watch?v=nPUQCBugSaw', 0, 3]
 ]
 
