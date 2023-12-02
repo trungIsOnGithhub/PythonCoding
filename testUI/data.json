@@ -1,0 +1,18 @@
+[
+    {
+        "email": "aa@aa.aa",
+        "password": "1234",
+        "role": "student",
+        "fullname": "AAAAA",
+        "desiredOutput": "Login Failed with student!!",
+        "desiredStatus": 401
+    },
+    {
+        "email": "aa@aa.aa",
+        "password": "1234",
+        "role": "teacher",
+        "fullname": "AAAAA",
+        "desiredOutput": "Login OK with teacher!!",
+        "desiredStatus": 401
+    }
+]
