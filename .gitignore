@@ -1,3 +1,8 @@
-*/bin
-*/lib
-*/lib64
+# Files 
+.env
+*.json
+*.ini
+ 
+# Folders 
+/logs
+/bin

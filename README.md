@@ -1,1 +1,0 @@
-### Funny stuff with Selenium Webdriver
