@@ -29,4 +29,5 @@ def get_postgres_db_connection():
     )
 
     postgres_connection.set_session(autocommit=True)
-    return postgres_connection
+
+    return postgres_connection, postgres_connection.cursor(), connection_info[2]

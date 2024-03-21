@@ -1,3 +1,5 @@
+import configparser
+
 def read_local_config():
     local_config_file_path = os.path.abspath('pipelines/config.ini')
 
