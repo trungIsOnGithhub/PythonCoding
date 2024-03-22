@@ -7,84 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from commons.logs import get_logger
 from commons.extract import load_json_data
+from commons.operations import *
 
-
-def measure_processing_time(start_time, end_time, target, logger):
-    execution_time = (end_time - start_time) * 1000
-
-    if (execution_time > 1000):
-        logger.info(f'2. Execution time for {target}: {execution_time} ms ({ round(execution_time/1000, 2) } secs)')
-        logger.info(f'')
-    else:
-        logger.info(f'2. Execution time for {target}: {execution_time} ms ')
-        logger.info(f'')
-
-
-def exec_query_and_check(cursor, exec_query, check_query, logger):
-    # Set up SQL statements for schema creation and validation check  
-    create_schema = f'''CREATE SCHEMA IF NOT EXISTS {schema_name};'''
-    check_if_schema_exists  = f'''SELECT schema_name from information_schema.schemata WHERE schema_name= '{schema_name}';'''
-
-    EXECUTION_START_TIME = time.time()
-    cursor.execute(exec_query)
-    EXECUTION_END_TIME = time.time()
-
-    CHECK_START_TIME = time.time()
-    cursor.execute(check_query)
-    CHECK_END_TIME = time.time()
-
-    sql_result = cursor.fetchone()[0]
-    if sql_result:
-        root_logger.info(f"=================================================================================================")
-        root_logger.info(f"EXECUTE SUCCESS {exec_query} schema")
-        root_logger.info(f"=================================================================================================")
-        root_logger.info(f"RESULT: {sql_result} ")
-
-
-    else:
-        root_logger.debug(f"")
-        root_logger.error(f"=================================================================================================")
-        root_logger.error(f"EXECUTE FAILED: {exec_query}")
-        root_logger.error(f"CHECK QUERY: {check_query}")
-        root_logger.error(f"=================================================================================================")
-    
-    logger.debug(f"")
-    logger.debug(f"")
-
-    measure_processing_time(EXECUTION_START_TIME, EXECUTION_END_TIME, 'Query Exec', logger)
-    measure_processing_time(CHECK_START_TIME, CHECK_END_TIME, 'Query Check', logger)
-
-
-# def delete_table_if_exists(cursor, schema_name, table_name):
-
-
-def table_profiling_metrics(cursor, count_column_query, count_unique_records_query, get_column_names_query, successful_rows_count, failed_rows_count, total_rows_in_table, logger):
-    cursor.execute(count_column_query)
-    total_columns_in_table = cursor.fetchone()[0]
-
-    cursor.execute(count_unique_records_query)
-    total_unique_records_in_table = cursor.fetchone()[0]
-    total_duplicate_records_in_table = total_rows_in_table - total_unique_records_in_table
-
-
-    cursor.execute(get_column_names_query)
-    list_of_column_names = cursor.fetchall()
-    column_names = [sql_result[0] for sql_result in list_of_column_names]
-
-    if successful_rows_count != total_rows_in_table:
-        logger.error(f"ERROR: There are only {successful_rows_count} records upload to table....")
-        raise Exception('successful_rows_count != total_rows_in_table')
-    elif failed_rows_count > 0:
-        logger.error(f"ERROR: A total of {failed_rows_count} records failed to upload to table....")
-        raise Exception()
-    elif total_unique_records_in_table != total_rows_in_table:
-        logger.error(f"ERROR: There are {total_duplicate_records_in_table} duplicated records in the uploads for table....")
-        raise Exception("total_unique_records_in_table != total_rows_in_table")
-    elif total_duplicate_records_in_table > 0:
-        logger.error(f"ERROR: There are {total_duplicate_records_in_table} duplicated records in the uploads for table....")
-        raise Exception("total_duplicate_records_in_table > 0")
-
-    return column_names
 
 
 def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
@@ -107,51 +31,13 @@ def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
     db_layer_name = dbname
     schema_name = 'main'
     table_name                      =   'raw_customer_info_tbl'
-    data_warehouse_layer            =   'RAW'
+    data_layer            =   'RAW'
     source_system                   =   ['CRM', 'ERP', 'Mobile App', 'Website', '3rd party apps', 'Company database']
     row_counter                     =   0 
-    column_index                    =   0 
     total_null_values_in_table      =   0 
     successful_rows_upload_count    =   0 
     failed_rows_upload_count        =   0 
 
-
-    
-    check_total_row_count_before_insert_statement   =   f'''   SELECT COUNT(*) FROM {schema_name}.{table_name}
-    '''
-
-    # Set up SQL statements for records insert and validation check
-    insert_customer_info_data  =   f'''                       INSERT INTO {schema_name}.{table_name} (
-                                                                            address, 
-                                                                            age, 
-                                                                            city, 
-                                                                            created_date, 
-                                                                            credit_card, 
-                                                                            credit_card_provider, 
-                                                                            customer_contact_preference_desc,
-                                                                            customer_contact_preference_id, 
-                                                                            customer_id, 
-                                                                            dob, 
-                                                                            email, 
-                                                                            first_name, 
-                                                                            last_name, 
-                                                                            last_updated_date, 
-                                                                            nationality,
-                                                                            phone_number, 
-                                                                            place_of_birth, 
-                                                                            state, 
-                                                                            zip, 
-                                                                            created_at, 
-                                                                            updated_at, 
-                                                                            source_system, 
-                                                                            source_file, 
-                                                                            load_timestamp, 
-                                                                            dwh_layer
-                                                                        )
-                                                                        VALUES (
-                                                                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                                                                        );
-    '''
 
 
 
@@ -214,26 +100,44 @@ def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
                                 OR      column_name     = 'load_timestamp' 
                                 OR      column_name     = 'dwh_layer');'''
 
-    cursor = exec_query_and_check(cursor, delete_raw_table_if_exists, check_if_raw_table_deleted, root_logger)
-
+    cursor = exec_query_and_check(cursor, add_data_lineage, check_data_lineage, root_logger)
 
     sql_results = cursor.fetchall()
-
     
     if len(sql_results) != 6: # 6 col
-        root_logger.error(f"==========================================================================================================================================================================")
-        root_logger.error(f"DATA LINEAGE FIELDS CREATE FAILURE: {schema_name}.{table_name}.... ")
+        root_logger.error(f"DATA LINEAGE FIELDS CREATE FAILED")
         root_logger.error(f"==========================================================================================================================================================================")
         root_logger.debug(f"")
 
 
-
-    # Add insert rows to table 
-    ROW_INSERTION_PROCESSING_START_TIME     =   time.time()
-    cursor.execute(check_total_row_count_before_insert_statement)
-    sql_result = cursor.fetchone()[0]
-    root_logger.info(f"Rows before SQL insert in Postgres: {sql_result} ")
-    root_logger.debug(f"")
+    insert_customer_info_data  =   f'''INSERT INTO {schema_name}.{table_name} (
+                                            address, 
+                                            age, 
+                                            city, 
+                                            created_date, 
+                                            credit_card, 
+                                            credit_card_provider, 
+                                            customer_contact_preference_desc,
+                                            customer_contact_preference_id, 
+                                            customer_id, 
+                                            dob, 
+                                            email, 
+                                            first_name, 
+                                            last_name, 
+                                            last_updated_date, 
+                                            nationality,
+                                            phone_number, 
+                                            place_of_birth, 
+                                            state, 
+                                            zip, 
+                                            created_at, 
+                                            updated_at, 
+                                            source_system, 
+                                            source_file, 
+                                            load_timestamp, 
+                                            dwh_layer
+                                        )
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);'''
 
 
     for customer_info in customer_info_data:
@@ -242,10 +146,7 @@ def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
             customer_info['age'], 
             customer_info['city'], 
             customer_info['created_date'], 
-            customer_info['credit_card'], 
-            customer_info['credit_card_provider'], 
-            json.dumps(customer_info['customer_contact_preference_desc']),
-            customer_info['customer_contact_preference_id'], 
+            customer_info['credit_card'],
             customer_info['customer_id'], 
             customer_info['dob'], 
             customer_info['email'], 
@@ -255,20 +156,15 @@ def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
             customer_info['nationality'],
             customer_info['phone_number'], 
             customer_info['place_of_birth'], 
-            customer_info['state'], 
-            customer_info['zip'],
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP,
             random.choice(source_system),
-            src_file,
             CURRENT_TIMESTAMP,
-            'RAW'
-            )
+            data_layer)
 
         cursor.execute(insert_customer_info_data, values)
 
 
-        # Validate if each row inserted into the table exists 
         if cursor.rowcount == 1:
             row_counter += 1
             successful_rows_upload_count += 1
@@ -283,93 +179,8 @@ def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
             root_logger.error(f'---------------------------------')
 
 
-    
-    ROW_INSERTION_PROCESSING_END_TIME   =   time.time()
 
 
-    ROW_COUNT_VAL_CHECK_PROCESSING_START_TIME   =   time.time()
-    cursor.execute(check_total_row_count_after_insert_statement)
-    ROW_COUNT_VAL_CHECK_PROCESSING_END_TIME     =   time.time()
-
-
-    total_rows_in_table = cursor.fetchone()[0]
-    root_logger.info(f"TOTAL ROW INSERTED: {total_rows_in_table} ")
-    root_logger.debug(f"")
-
-
-    
-
-
-    # Display data profiling metrics
-    
-    root_logger.info(f'')
-    root_logger.info(f'')
-    root_logger.info(f'TABLE STATISTICS')
-    root_logger.info(f'')
-    root_logger.info(f'')
-    root_logger.info(f'Table name:                                  {table_name} ')
-    root_logger.info(f'Schema name:                                 {schema_name} ')
-    root_logger.info(f'Database name:                               {dbname} ')
-    root_logger.info(f'Data warehouse layer:                        {data_warehouse_layer} ')
-    root_logger.info(f'')
-    root_logger.info(f'')
-    root_logger.info(f'Number of rows in table:                     {total_rows_in_table} ')
-    root_logger.info(f'Number of columns in table:                  {total_columns_in_table} ')
-    root_logger.info(f'')
-
-
-    if successful_rows_upload_count == total_rows_in_table:
-        root_logger.info(f'Successful records uploaded total :          {successful_rows_upload_count} / {total_rows_in_table}   ')
-        root_logger.info(f'Failed/Errored records uploaded total:       {failed_rows_upload_count} / {total_rows_in_table}       ')
-        root_logger.info(f'')
-        root_logger.info(f'Successful records uploaded % :              {(successful_rows_upload_count / total_rows_in_table) * 100}    ')
-        root_logger.info(f'Failed/Errored records uploaded %:           {(failed_rows_upload_count/total_rows_in_table) * 100}       ')
-        root_logger.info(f'')
-    else:
-        root_logger.warning(f'Successful records uploaded total :          {successful_rows_upload_count} / {total_rows_in_table}   ')
-        root_logger.warning(f'Failed/Errored records uploaded total:       {failed_rows_upload_count} / {total_rows_in_table}       ')
-        root_logger.warning(f'')
-        root_logger.warning(f'Successful records uploaded % :              {(successful_rows_upload_count / total_rows_in_table) * 100}    ')
-        root_logger.warning(f'Failed/Errored records uploaded %:           {(failed_rows_upload_count/total_rows_in_table) * 100}       ')
-        root_logger.warning(f'')
-
-
-    if total_unique_records_in_table == total_rows_in_table:
-        root_logger.info(f'Number of unique records:                    {total_unique_records_in_table} / {total_rows_in_table}')
-        root_logger.info(f'Number of duplicate records:                 {total_duplicate_records_in_table} / {total_rows_in_table}')
-        root_logger.info(f'')
-        root_logger.info(f'Unique records %:                            {(total_unique_records_in_table / total_rows_in_table) * 100} ')
-        root_logger.info(f'Duplicate records %:                         {(total_duplicate_records_in_table / total_rows_in_table)  * 100} ')
-        root_logger.info(f'')
-    
-    else:
-        root_logger.warning(f'Number of unique records:                    {total_unique_records_in_table} / {total_rows_in_table}')
-        root_logger.warning(f'Number of duplicate records:                 {total_duplicate_records_in_table} / {total_rows_in_table}')
-        root_logger.warning(f'')
-        root_logger.warning(f'Unique records %:                            {(total_unique_records_in_table / total_rows_in_table) * 100} ')
-        root_logger.warning(f'Duplicate records %:                         {(total_duplicate_records_in_table / total_rows_in_table)  * 100} ')
-        root_logger.warning(f'')
-    
-
-    for column_name in column_names:
-        cursor.execute(f'''
-                SELECT COUNT(*)
-                FROM {schema_name}.{table_name}
-                WHERE {column_name} is NULL
-        ''')
-        sql_result = cursor.fetchone()[0]
-        total_null_values_in_table += sql_result
-        column_index += 1
-        if sql_result == 0:
-            root_logger.info(f'Column name: {column_name},  Column no: {column_index},  Number of NULL values: {sql_result} ')
-        else:
-            root_logger.warning(f'Column name: {column_name},  Column no: {column_index},  Number of NULL values: {sql_result} ')
-    
-
-
-
-    # Add conditional statements for data profile metrics
-    check_total_row_count_after_insert_statement = f'''SELECT COUNT(*) FROM {schema_name}.{table_name}'''    
     count_columns_in_table = f'''SELECT COUNT(column_name) 
                                             FROM information_schema.columns 
                                             WHERE table_name = '{table_name}'
@@ -381,10 +192,26 @@ def load_customer_data_to_raw_table(postgres_connection, cursor, dbname):
                                         WHERE       table_name   =  '{table_name}'
                                         ORDER BY    ordinal_position '''
 
-    table_profiling_metrics(cursor, count_columns_in_table, count_unique_records_in_table, get_column_names)
+    column_names = table_profiling_metrics(cursor, count_columns_in_table, count_unique_records_in_table, get_column_names, total_rows_in_table, successful_rows_upload_count, failed_rows_upload_count, root_logger)
 
 
+    total_rows_in_table = cursor.fetchone()[0]
+    root_logger.info(f"TOTAL ROW INSERTED: {total_rows_in_table} ")
+    root_logger.debug(f"")
 
+
+    for column_name in column_names:
+        cursor.execute(f'''SELECT COUNT(*)
+                FROM {schema_name}.{table_name}
+                WHERE {column_name} is NULL
+        ''')
+        sql_result = cursor.fetchone()[0]
+        total_null_values_in_table += sql_result
+
+        if sql_result == 0:
+            root_logger.info(f'Column name: {column_name},  Number of NULL values: {sql_result}')
+        else:
+            root_logger.warning(f'Column name: {column_name},  Number of NULL values: {sql_result}')
 
 
     # Commit the changes made in Postgres 
